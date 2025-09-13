@@ -5,9 +5,22 @@ from PIL import Image, ImageTk
 from pathlib import Path
 
 
-LOG_PATH = Path(__file__).parent / "app.log"
-INFO_PATH = Path(__file__).parent / "info.json"
-ICON_PATH = Path(__file__).parent / "logo.png"
+def get_app_dir():
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable).parent
+    else:
+        return Path(__file__).parent
+
+def resource_path(relative_path):
+    if getattr(sys, 'frozen', False):
+        base_path = Path(sys._MEIPASS)
+    else:
+        base_path = Path(__file__).parent
+    return base_path / relative_path
+
+LOG_PATH = get_app_dir() / "app.log"
+INFO_PATH = get_app_dir() / "info.json"
+ICON_PATH = resource_path("logo.png")
 
 
 logging.basicConfig(
@@ -16,33 +29,27 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 
+def ensure_info_json():
+    if not INFO_PATH.exists():
+        default_data = {"tasks": [], "default_color_theme": "blue", "appearance_mode": "dark"}
+        with open(INFO_PATH, "w", encoding="utf-8") as f:
+            json.dump(default_data, f, indent=4)
+        logging.warning("info.json not found. Created a new one.")
+        return default_data
+    return None
 
-
-try:
-    with open(INFO_PATH, "r", encoding="utf-8") as f:
-        data = json.load(f)
-except FileNotFoundError:
-    with open(INFO_PATH, "w", encoding="utf-8") as f:
-        json.dump(
-            {"tasks": [], "default_color_theme": "blue", "appearance_mode": "dark"},
-            f,
-            indent=4,
-        )
-    data = {"tasks": [], "default_color_theme": "blue", "appearance_mode": "dark"}
-    logging.warning("info.json not found. Created a new one.")
+# Load or initialize data
+data = ensure_info_json() or json.load(open(INFO_PATH, "r", encoding="utf-8"))
 
 customtkinter.set_default_color_theme(data.get("default_color_theme", "blue"))
 customtkinter.set_appearance_mode(data.get("appearance_mode", "dark"))
 
 
 class App:
-
     def __init__(self):
         self.root = customtkinter.CTk()
         self.root.geometry("600x440")
         self.root.title("Checklist")
-
-        icon_path = Path(__file__).parent / "logo.png"
 
         try:
             self.icon_image = Image.open(ICON_PATH)
@@ -95,7 +102,6 @@ class App:
         self.submit_btn.pack()
 
     def add_task(self, text: str = None):
-
         if not text:
             return
         if len(text) > 120:
