@@ -7,7 +7,7 @@ class Task(customtkinter.CTkFrame):
 
         self.isChecked = customtkinter.BooleanVar(value=False)
 
-        self.label = customtkinter.CTkLabel(self, text=task_name, font=("Arial", 20))
+        self.label = customtkinter.CTkLabel(self, text=task_name, font=("Arial", 20), text_color="#F0F0F0")
         self.label.grid(row=0, column=0, padx=20, pady=10)
 
         self.columnconfigure(1, weight=1)
@@ -20,5 +20,6 @@ class Task(customtkinter.CTkFrame):
             variable=self.isChecked,
             onvalue=True,
             offvalue=False,
+            border_color="#F0F0F0",
         )
         self.checkbox.grid(row=0, column=2, padx=10, pady=10)
