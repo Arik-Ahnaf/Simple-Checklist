@@ -45,20 +45,20 @@ customtkinter.set_default_color_theme(data.get("default_color_theme", "blue"))
 customtkinter.set_appearance_mode(data.get("appearance_mode", "dark"))
 
 
-class App:
+class App(customtkinter.CTk):
     def __init__(self):
-        self.root = customtkinter.CTk()
-        self.root.geometry("600x440")
-        self.root.title("Checklist")
+        super().__init__()
+        self.geometry("600x440")
+        self.title("Checklist")
 
         try:
             self.icon_image = Image.open(ICON_PATH)
             self.icon_photo = ImageTk.PhotoImage(self.icon_image)
-            self.root.iconphoto(False, self.icon_photo)
+            self.iconphoto(False, self.icon_photo)
         except Exception as e:
             logging.warning(f"Could not load icon: {e}")
 
-        self.scrollable_frame = customtkinter.CTkScrollableFrame(self.root)
+        self.scrollable_frame = customtkinter.CTkScrollableFrame(self)
         self.scrollable_frame.pack(padx=10, pady=(10, 0), fill="both", expand=True)
 
         # load tasks from info.json
@@ -69,20 +69,26 @@ class App:
         self.add_btn = AddBtn(self.scrollable_frame, self.create_input_window)
         self.add_btn.pack(pady=10)
 
-        self.delete_btn = DeleteBtn(self.root, self.delete_task)
+        self.delete_btn = DeleteBtn(self, self.delete_task)
         self.delete_btn.pack(pady=10)
 
-        self.root.mainloop()
+        self.mainloop()
 
     def create_input_window(self):
-        self.top = customtkinter.CTkToplevel(self.root)
-        self.top.geometry("300x150")
+        self.top = customtkinter.CTkToplevel(self)
+        self.top.geometry("400x150")
         self.top.title("Add Task")
+        try:
+            self.icon_image = Image.open(ICON_PATH)
+            self.icon_photo = ImageTk.PhotoImage(self.icon_image)
+            self.top.iconphoto(False, self.icon_photo)
+        except Exception as e:
+            logging.warning(f"Could not load icon: {e}")
 
         self.textbox = customtkinter.CTkEntry(
             self.top,
             placeholder_text="Enter task here",
-            width=200,
+            width=300,
             font=("sans-serif", 20),
         )
         self.textbox.pack(pady=20)
@@ -135,3 +141,7 @@ class App:
                     with open(INFO_PATH, "w", encoding="utf-8") as f:
                         json.dump(data, f, indent=4)
                     logging.info(f"Deleted task: {task.label.cget('text')}")
+
+
+if __name__ == "__main__":
+    App()
