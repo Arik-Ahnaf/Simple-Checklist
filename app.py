@@ -1,5 +1,5 @@
-import customtkinter, json, logging, sys
-from components.task import Task
+import customtkinter, json, logging, sys, os
+from components.item import Item
 from components.buttons import AddBtn, DeleteBtn
 from PIL import Image, ImageTk
 from pathlib import Path
@@ -20,7 +20,7 @@ def resource_path(relative_path):
 
 LOG_PATH = get_app_dir() / "app.log"
 INFO_PATH = get_app_dir() / "info.json"
-ICON_PATH = resource_path("logo.png")
+ICON_PATH = resource_path("logo." + ("ico" if os.name == "nt" else "png"))
 
 
 logging.basicConfig(
@@ -31,7 +31,7 @@ logging.basicConfig(
 
 def ensure_info_json():
     if not INFO_PATH.exists():
-        default_data = {"tasks": [], "default_color_theme": "blue", "appearance_mode": "dark"}
+        default_data = {"items": [], "default_color_theme": "blue", "appearance_mode": "dark"}
         with open(INFO_PATH, "w", encoding="utf-8") as f:
             json.dump(default_data, f, indent=4)
         logging.warning("info.json not found. Created a new one.")
@@ -50,7 +50,11 @@ class App(customtkinter.CTk):
         super().__init__()
         self.geometry("600x440")
         self.title("Checklist")
+        self.top = None
 
+
+        if os.name == "nt":
+            self.iconbitmap(ICON_PATH)
         try:
             self.icon_image = Image.open(ICON_PATH)
             self.icon_photo = ImageTk.PhotoImage(self.icon_image)
@@ -61,23 +65,28 @@ class App(customtkinter.CTk):
         self.scrollable_frame = customtkinter.CTkScrollableFrame(self)
         self.scrollable_frame.pack(padx=10, pady=(10, 0), fill="both", expand=True)
 
-        # load tasks from info.json
-        for task_name in data.get("tasks", []):
-            task = Task(self.scrollable_frame, task_name)
-            task.pack(pady=5, fill="x", expand=True)
+        # load items from info.json
+        for item_name in data.get("items", []):
+            item = Item(self.scrollable_frame, item_name)
+            item.pack(pady=5, fill="x", expand=True)
 
         self.add_btn = AddBtn(self.scrollable_frame, self.create_input_window)
         self.add_btn.pack(pady=10)
 
-        self.delete_btn = DeleteBtn(self, self.delete_task)
+        self.delete_btn = DeleteBtn(self, self.delete_item)
         self.delete_btn.pack(pady=10)
 
         self.mainloop()
 
     def create_input_window(self):
+
+        if self.top and self.top.winfo_exists():
+            return
+        
         self.top = customtkinter.CTkToplevel(self)
         self.top.geometry("400x150")
-        self.top.title("Add Task")
+        self.top.title("Add Item")
+
         try:
             self.icon_image = Image.open(ICON_PATH)
             self.icon_photo = ImageTk.PhotoImage(self.icon_image)
@@ -87,17 +96,16 @@ class App(customtkinter.CTk):
 
         self.textbox = customtkinter.CTkEntry(
             self.top,
-            placeholder_text="Enter task here",
+            placeholder_text="Enter item name here",
             width=300,
             font=("sans-serif", 20),
         )
         self.textbox.pack(pady=20)
-        self.textbox.focus()
 
         self.submit_btn = customtkinter.CTkButton(
             self.top,
             text="Submit",
-            command=lambda: self.add_task(self.textbox.get().strip()),
+            command=lambda: self.add_item(self.textbox.get().strip()),
             fg_color="#29AE01",
             hover_color="#035800",
             corner_radius=10,
@@ -107,40 +115,44 @@ class App(customtkinter.CTk):
         )
         self.submit_btn.pack()
 
-    def add_task(self, text: str = None):
+        self.top.lift()
+        self.top.focus_force()
+        self.textbox.focus()
+
+    def add_item(self, text: str = None):
         if not text:
             return
         if len(text) > 120:
             text = text[:120] + "..."
-        if text in data["tasks"]:
-            logging.info(f"Attempted to add duplicate task: {text}")
+        if text in data["items"]:
+            logging.info(f"Attempted to add duplicate item: {text}")
             return
 
         self.add_btn.destroy()
         self.top.destroy()
 
-        task = Task(self.scrollable_frame, text)
-        task.pack(pady=5, fill="x", expand=True)
+        item = Item(self.scrollable_frame, text)
+        item.pack(pady=5, fill="x", expand=True)
 
         self.add_btn = AddBtn(self.scrollable_frame, self.create_input_window)
         self.add_btn.pack(pady=5)
 
-        # save the new task to info.json
-        data["tasks"].append(text)
+        # save the new item to info.json
+        data["items"].append(text)
         with open(INFO_PATH, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
-        logging.info(f"Added task: {text}")
+        logging.info(f"Added item: {text}")
 
-    def delete_task(self):
-        for task in self.scrollable_frame.winfo_children():
-            if isinstance(task, Task) and task.isChecked.get():
-                task.destroy()
+    def delete_item(self):
+        for item in self.scrollable_frame.winfo_children():
+            if isinstance(item, Item) and item.isChecked.get():
+                item.destroy()
 
-                if task.label.cget("text") in data["tasks"]:
-                    data["tasks"].remove(task.label.cget("text"))
+                if item.label.cget("text") in data["items"]:
+                    data["items"].remove(item.label.cget("text"))
                     with open(INFO_PATH, "w", encoding="utf-8") as f:
                         json.dump(data, f, indent=4)
-                    logging.info(f"Deleted task: {task.label.cget('text')}")
+                    logging.info(f"Deleted item: {item.label.cget('text')}")
 
 
 if __name__ == "__main__":
